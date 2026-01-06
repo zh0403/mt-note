@@ -37,61 +37,118 @@ function decryptData(ciphertext, key) {
 async function init() {
     console.log("📕 MT Note: Initializing...");
 
-    // 1. Get Transaction Hash from URL
     const path = window.location.pathname.split('/');
     const txHash = path[path.length - 1];
-
-    // Only run on actual transaction pages
     if (!txHash.startsWith("0x")) return;
 
-    // 2. Inject UI Container
+    // --- NEW: Theme Detection Logic ---
+    // We check the computed background color of the main table to decide if it's Dark or Light
+    const mainTable = document.querySelector('.card') || document.body;
+    const bgColor = window.getComputedStyle(mainTable).backgroundColor;
+    
+    // Simple heuristic: Is the background dark?
+    // rgb(0, 0, 0) or similar -> Dark Mode
+    const isDark = bgColor.indexOf('rgb(0') !== -1 || bgColor.indexOf('rgb(3') !== -1 || bgColor.includes('#0');
+    
+    // Define Colors based on Theme
+    const theme = {
+        bg: isDark ? '#0f1214' : '#ffffff',
+        text: isDark ? '#ffffff' : '#1e293b',
+        border: isDark ? '#333' : '#e2e8f0',
+        inputBg: isDark ? '#1a1d1f' : '#f8fafc',
+        inputText: isDark ? '#ffffff' : '#0f172a',
+        tagBg: isDark ? '#2d3748' : '#e2e8f0',
+        tagText: isDark ? '#a0aec0' : '#475569',
+        shadow: isDark ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+    };
+
+    // --- Inject UI with Dynamic Colors ---
     const container = document.createElement('div');
     container.style = `
-        background: #0f1214; 
-        color: #fff; 
+        background: ${theme.bg}; 
+        color: ${theme.text}; 
         padding: 20px; 
         margin: 20px 0; 
         border-radius: 12px; 
-        border: 1px solid #333;
+        border: 1px solid ${theme.border};
+        box-shadow: ${theme.shadow};
         font-family: 'Inter', sans-serif;
     `;
+
+    // [The rest of your HTML generation remains the same, but use the theme variables]
+    // I will rewrite the innerHTML part to use these variables for you:
     
+    const quickTags = [
+        { label: "🍔 Food", val: "#Food" },
+        { label: "🚕 Transport", val: "#Transport" },
+        { label: "💻 Dev", val: "#Dev" },
+        { label: "💰 Salary", val: "#Salary" },
+        { label: "⛽ Gas", val: "#Gas" }
+    ];
+
+    const tagsHtml = quickTags.map(tag => 
+        `<button class="mt-tag" data-val="${tag.val}" style="
+            background: ${theme.tagBg}; color: ${theme.tagText}; border: 1px solid ${theme.border}; 
+            padding: 4px 10px; border-radius: 20px; font-size: 12px; cursor: pointer; margin-right: 6px; font-weight: 500;
+        ">${tag.label}</button>`
+    ).join('');
+
     container.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
-                📕 <span style="font-weight: 700;">MT Note</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid ${theme.border}; padding-bottom: 10px;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 16px;">
+                📕 <span style="background: linear-gradient(90deg, #65b3ad, #38b2ac); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">MT Note</span>
             </h3>
-            <span id="mt-status" style="font-size: 12px; color: #888;">Ready</span>
+            <span id="mt-status" style="font-size: 11px; color: #94a3b8; font-family: monospace;">● System Ready</span>
         </div>
         
+        <div id="mt-tags-row" style="margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 5px;">
+            ${tagsHtml}
+        </div>
+
         <div style="display: flex; gap: 10px;">
-            <input type="text" id="mt-input" placeholder="What was this transaction for? (e.g. Lunch, Dev Payment)" 
-                style="flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #1a1d1f; color: white;">
+            <input type="text" id="mt-input" placeholder="Add a secure note..." 
+                style="flex-grow: 1; padding: 12px; border-radius: 8px; border: 1px solid ${theme.border}; background: ${theme.inputBg}; color: ${theme.inputText}; outline: none; font-size: 14px;">
             
             <button id="mt-save" 
-                style="cursor: pointer; background: #65b3ad; color: black; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; transition: all 0.2s;">
+                style="cursor: pointer; background: #000000; color: #ffffff; border: none; padding: 0 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
                 Save
             </button>
         </div>
-        <div id="mt-display" style="display:none; margin-top: 15px; padding: 10px; background: #1a1d1f; border-radius: 6px; color: #65b3ad; border: 1px solid #65b3ad;"></div>
+        
+        <div id="mt-display" style="display:none; margin-top: 15px; padding: 12px; background: rgba(101, 179, 173, 0.1); border-radius: 8px; color: #0d9488; border: 1px solid #65b3ad; font-size: 14px;"></div>
     `;
 
-    // 3. Insert into Page
-    // Try to find the best spot on MantleScan
+    // Insert logic
     const anchor = document.querySelector('#ContentPlaceHolder1_maintable') || document.querySelector('.card');
     if (anchor) {
         anchor.parentNode.insertBefore(container, anchor);
     }
 
-    // 4. Check if note already exists
-    await checkExistingNote(txHash);
-
-    // 5. Add Click Listener
-    document.getElementById('mt-save').onclick = async () => {
-        await saveNote(txHash);
-    };
+    // [Keep the rest of your event listeners exactly the same]
+    // ...
+    // ...
     
-    // Auto-check (this will show "Encrypted" status first)
+    // Add Hover Logic for Tags (Dynamic)
+    setTimeout(() => {
+        document.querySelectorAll('.mt-tag').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const val = e.target.getAttribute('data-val');
+                const input = document.getElementById('mt-input');
+                input.value = input.value ? input.value + " " + val : val;
+                input.focus();
+            });
+            // Hover effect
+            btn.onmouseover = () => { btn.style.background = "#e2e8f0"; btn.style.borderColor = "#cbd5e1"; };
+            btn.onmouseout = () => { btn.style.background = theme.tagBg; btn.style.borderColor = theme.border; };
+        });
+        
+        // Re-attach save button listener since we overwrote innerHTML
+        document.getElementById('mt-save').onclick = async () => {
+            await saveNote(txHash);
+        };
+    }, 500);
+
+    // Initial check
     await checkExistingNote(txHash);
 }
 
