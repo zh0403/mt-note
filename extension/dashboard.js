@@ -1,0 +1,136 @@
+// dashboard.js
+
+const CONTRACT_ADDRESS = window.MT_NOTE_ADDRESS || "0x4e752A4d38B33354a334bf95248D1498bef89319"; 
+let provider, signer, contract;
+let allEvents = []; // Store raw events here
+
+document.getElementById('connect-btn').onclick = initDashboard;
+
+async function initDashboard() {
+    if (!window.ethereum) return alert("Install MetaMask!");
+    
+    // 1. Setup
+    provider = new ethers.BrowserProvider(window.ethereum);
+    signer = await provider.getSigner();
+    contract = new ethers.Contract(CONTRACT_ADDRESS, window.MT_NOTE_ABI, signer);
+    
+    const address = await signer.getAddress();
+    
+    // Update UI
+    document.getElementById('connect-btn').innerText = "Connected: " + address.slice(0,6) + "...";
+    document.getElementById('connect-btn').classList.add('btn-outline');
+    updateStatus("🔍 Scanning blockchain for your notes... (This might take a moment)");
+
+    // 2. Query Events
+    // Create a filter: specific user, any txHash
+    const filter = contract.filters.NoteLog(address);
+    
+    // Fetch logs (from block 0 to latest)
+    // Note: On Mainnet you might want to limit the block range, but on Testnet 'fromBlock: 0' is usually fine.
+    try {
+        const events = await contract.queryFilter(filter, 0, "latest");
+        allEvents = events.reverse(); // Show newest first
+        
+        renderTable(allEvents, null); // Render LOCKED initially
+        
+        // Change button to "Unlock"
+        const btn = document.getElementById('connect-btn');
+        btn.innerText = "🔓 Unlock My Notes";
+        btn.className = "btn"; // Make it solid again
+        btn.onclick = unlockNotes;
+        
+        updateStatus(`✅ Found ${events.length} notes. Click 'Unlock' to decrypt them.`);
+
+    } catch (err) {
+        console.error(err);
+        updateStatus("❌ Error fetching notes: " + err.message);
+    }
+}
+
+async function unlockNotes() {
+    try {
+        updateStatus("✍️ Please sign the message to generate your decryption key...");
+        
+        // 1. Get Key
+        const msg = "Sign this message to unlock your MT Notes.\n\n(This does not cost gas)";
+        const signature = await signer.signMessage(msg);
+        
+        // 2. Re-render Table with Key
+        updateStatus("🔓 Decrypting...");
+        renderTable(allEvents, signature); // Pass the key this time
+        
+        // 3. Update UI
+        document.getElementById('connect-btn').style.display = 'none';
+        updateStatus("✨ Ledger Unlocked. All data visible.");
+        
+    } catch (err) {
+        alert("Unlock failed: " + err.message);
+    }
+}
+
+function renderTable(events, key) {
+    const tbody = document.getElementById('ledger-body');
+    tbody.innerHTML = ""; // Clear current rows
+
+    if (events.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">No notes found for this wallet.</td></tr>`;
+        return;
+    }
+
+    events.forEach(event => {
+        const txHash = event.args.txHash;
+        const rawNote = event.args.ipfsCid; // In our 'Lite' version this is the text/cipher
+        const blockTime = event.args.timestamp; // We added this to the contract? 
+        // Wait, did we add timestamp to the event in Step 2? 
+        // If your contract version doesn't have timestamp in the event, we can't show Date easily without fetching block.
+        // For Hackathon speed, let's just show "Block " + event.blockNumber if timestamp is missing.
+        
+        let displayDate = "Block " + event.blockNumber;
+        
+        let displayNote = "";
+        let isEncrypted = rawNote.startsWith("enc:");
+
+        if (isEncrypted) {
+            if (key) {
+                // Try to decrypt
+                const cipher = rawNote.replace("enc:", "");
+                const plain = decrypt(cipher, key);
+                displayNote = plain ? plain : "⚠️ Decryption Failed";
+            } else {
+                displayNote = "🔒 <i>Encrypted Content</i>";
+            }
+        } else {
+            // Legacy/Plain text
+            displayNote = rawNote.replace("text:", "");
+        }
+
+        // Format Tx Hash link
+        const shortHash = txHash.slice(0, 6) + "..." + txHash.slice(-4);
+        const link = `https://sepolia.mantlescan.xyz/tx/${txHash}`;
+
+        const row = `
+            <tr>
+                <td style="color:#666;">${displayDate}</td>
+                <td><a href="${link}" target="_blank">${shortHash}</a></td>
+                <td style="color: ${key || !isEncrypted ? '#fff' : '#666'}">${displayNote}</td>
+                <td>
+                    <button style="background:none; border:none; color:#666; cursor:pointer;">✏️</button>
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+}
+
+function decrypt(ciphertext, key) {
+    try {
+        const bytes = CryptoJS.AES.decrypt(ciphertext, key);
+        return bytes.toString(CryptoJS.enc.Utf8);
+    } catch (e) { return null; }
+}
+
+function updateStatus(msg) {
+    const el = document.getElementById('status-bar');
+    el.style.display = 'block';
+    el.innerText = msg;
+}
