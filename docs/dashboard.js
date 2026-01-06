@@ -6,44 +6,69 @@ let allEvents = []; // Store raw events here
 
 document.getElementById('connect-btn').onclick = initDashboard;
 
-async function initDashboard() {
-    if (!window.ethereum) return alert("Install MetaMask!");
+// --- Polling Helper to wait for MetaMask ---
+async function waitForEthereum() {
+    if (window.ethereum) return window.ethereum;
     
-    // 1. Setup
-    provider = new ethers.BrowserProvider(window.ethereum);
-    signer = await provider.getSigner();
-    contract = new ethers.Contract(CONTRACT_ADDRESS, window.MT_NOTE_ABI, signer);
-    
-    const address = await signer.getAddress();
-    
-    // Update UI
-    document.getElementById('connect-btn').innerText = "Connected: " + address.slice(0,6) + "...";
-    document.getElementById('connect-btn').classList.add('btn-outline');
-    updateStatus("🔍 Scanning blockchain for your notes... (This might take a moment)");
+    console.log("Waiting for MetaMask to inject...");
+    // Check every 100ms for up to 3 seconds
+    for (let i = 0; i < 30; i++) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        if (window.ethereum) return window.ethereum;
+    }
+    return null;
+}
 
-    // 2. Query Events
-    // Create a filter: specific user, any txHash
-    const filter = contract.filters.NoteLog(address);
+async function initDashboard() {
+    // 1. Wait for MetaMask to load
+    const eth = await waitForEthereum();
     
-    // Fetch logs (from block 0 to latest)
-    // Note: On Mainnet you might want to limit the block range, but on Testnet 'fromBlock: 0' is usually fine.
+    if (!eth) {
+        // If still nothing after 3 seconds, show error
+        document.getElementById('status-bar').style.display = 'block';
+        document.getElementById('status-bar').innerHTML = `
+            <b>MetaMask not detected.</b><br>
+            If you have it installed, try refreshing this page.
+        `;
+        return;
+    }
+    
+    // 2. Setup Provider
+    provider = new ethers.BrowserProvider(window.ethereum);
+    
+    // Request access (this triggers the MetaMask popup)
     try {
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        contract = new ethers.Contract(CONTRACT_ADDRESS, window.MT_NOTE_ABI, signer);
+        
+        const address = await signer.getAddress();
+        
+        // Update UI
+        document.getElementById('connect-btn').innerText = "Connected: " + address.slice(0,6) + "...";
+        document.getElementById('connect-btn').classList.add('btn-outline');
+        updateStatus("Scanning blockchain for your notes... (This might take a moment)");
+
+        // 3. Query Events
+        const filter = contract.filters.NoteLog(address);
+        
+        // Fetch logs
         const events = await contract.queryFilter(filter, 0, "latest");
-        allEvents = events.reverse(); // Show newest first
+        allEvents = events.reverse(); 
         
         renderTable(allEvents, null); // Render LOCKED initially
         
         // Change button to "Unlock"
         const btn = document.getElementById('connect-btn');
         btn.innerText = "🔓 Unlock My Notes";
-        btn.className = "btn"; // Make it solid again
+        btn.className = "btn"; 
         btn.onclick = unlockNotes;
         
         updateStatus(`✅ Found ${events.length} notes. Click 'Unlock' to decrypt them.`);
 
     } catch (err) {
         console.error(err);
-        updateStatus("❌ Error fetching notes: " + err.message);
+        updateStatus("❌ Connection Error: " + err.message);
     }
 }
 
