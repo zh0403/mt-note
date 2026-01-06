@@ -1,6 +1,6 @@
 # 😈 MT Note (Mantle Transaction Note)
 
-> "Don't let your history be MT." <
+> "Don't let your history be MT."
 
 **MT Note** is a decentralized bookkeeping tool built for the Mantle Network. It allows users to attach encrypted, permanent descriptions to their on-chain transactions, solving the "What was this payment for?" problem without relying on centralized servers.
 
