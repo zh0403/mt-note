@@ -2,10 +2,40 @@
 
 // Ensure the address is set (Safety check)
 // Replace with your ACTUAL contract address if different
-const CONTRACT_ADDRESS = window.MT_NOTE_ADDRESS || "0x4e752A4d38B33354a334bf95248D1498bef89319"; 
+const CONTRACT_ADDRESS = window.MT_NOTE_ADDRESS || "0x4e752A4d38B33354a334bf95248D1498bef89319";
+let GLOBAL_KEY = null; // We store the key here after they sign once
+
+// --- HELPER: Derive Key from Signature ---
+async function getEncryptionKey(signer) {
+    if (GLOBAL_KEY) return GLOBAL_KEY;
+
+    // 1. Ask user to sign a static message
+    // This signature acts as their "password" but they don't have to remember it!
+    const msg = "Sign this message to log into MT Note.\n\n(This does not cost gas)";
+    const signature = await signer.signMessage(msg);
+
+    // 2. Turn that signature into a usable AES key
+    GLOBAL_KEY = signature; 
+    return GLOBAL_KEY;
+}
+
+// --- HELPER: Encrypt/Decrypt ---
+function encryptData(text, key) {
+    if (!text) return "";
+    return CryptoJS.AES.encrypt(text, key).toString();
+}
+
+function decryptData(ciphertext, key) {
+    try {
+        const bytes = CryptoJS.AES.decrypt(ciphertext, key);
+        return bytes.toString(CryptoJS.enc.Utf8);
+    } catch (e) {
+        return null; // Failed to decrypt (wrong key or not encrypted)
+    }
+}
 
 async function init() {
-    console.log("😈 MT Note: Initializing...");
+    console.log("📕 MT Note: Initializing...");
 
     // 1. Get Transaction Hash from URL
     const path = window.location.pathname.split('/');
@@ -29,7 +59,7 @@ async function init() {
     container.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
-                😈 <span style="font-weight: 700;">MT Note</span>
+                📕 <span style="font-weight: 700;">MT Note</span>
             </h3>
             <span id="mt-status" style="font-size: 12px; color: #888;">Ready</span>
         </div>
@@ -57,10 +87,107 @@ async function init() {
     await checkExistingNote(txHash);
 
     // 5. Add Click Listener
-    const saveBtn = document.getElementById('mt-save');
-    saveBtn.onclick = async () => {
+    document.getElementById('mt-save').onclick = async () => {
         await saveNote(txHash);
     };
+    
+    // Auto-check (this will show "Encrypted" status first)
+    await checkExistingNote(txHash);
+}
+
+// --- Action: Save Encrypted Note ---
+async function saveNote(txHash) {
+    const input = document.getElementById('mt-input');
+    const status = document.getElementById('mt-status');
+    const noteText = input.value;
+
+    if (!noteText) return alert("Write something first!");
+
+    try {
+        status.innerText = "Please sign to encrypt...";
+        const contract = await getContract();
+        
+        // 1. Get the Key (MetaMask Popup #1)
+        // We need the signer from the contract object
+        const key = await getEncryptionKey(contract.runner);
+
+        // 2. Encrypt
+        status.innerText = "Encrypting...";
+        const encryptedCid = "enc:" + encryptData(noteText, key);
+        console.log("Encrypted Data:", encryptedCid);
+
+        // 3. Save to Blockchain (MetaMask Popup #2 - Gas Fee)
+        status.innerText = "Check your wallet...";
+        const tx = await contract.addNote(txHash, encryptedCid);
+        
+        status.innerText = "Saving...";
+        await tx.wait();
+        
+        status.innerText = "Saved & Secured! 🔒";
+        input.value = "";
+        
+        // Refresh display
+        await checkExistingNote(txHash);
+
+    } catch (err) {
+        console.error(err);
+        status.innerText = "Error: " + err.message;
+    }
+}
+
+// --- Action: Read Encrypted Note ---
+async function checkExistingNote(txHash) {
+    if (!window.ethereum) return;
+
+    try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, window.MT_NOTE_ABI, provider);
+        const accounts = await provider.listAccounts();
+        if (accounts.length === 0) return;
+        
+        const userAddress = accounts[0].address;
+        const note = await contract.getNote(userAddress, txHash);
+
+        if (note && note.length > 0) {
+            const display = document.getElementById('mt-display');
+            display.style.display = "block";
+
+            // CHECK: Is it encrypted?
+            if (note.startsWith("enc:")) {
+                const rawCipher = note.replace("enc:", "");
+                
+                // If we already have the key (from saving), decrypt immediately
+                if (GLOBAL_KEY) {
+                    const plain = decryptData(rawCipher, GLOBAL_KEY);
+                    display.innerText = "🔓 Decrypted: " + plain;
+                } else {
+                    // If no key yet, show a button to Unlock
+                    display.innerHTML = `
+                        🔒 <b>Encrypted Note Found</b><br>
+                        <button id="mt-unlock-btn" style="margin-top:5px; cursor:pointer; background:#333; color:white; border:none; padding:5px 10px; border-radius:4px;">
+                            Unlock to Read
+                        </button>
+                    `;
+                    // Add listener to the new button
+                    setTimeout(() => {
+                        const btn = document.getElementById('mt-unlock-btn');
+                        if (btn) btn.onclick = async () => {
+                            const provider = new ethers.BrowserProvider(window.ethereum);
+                            const signer = await provider.getSigner();
+                            const key = await getEncryptionKey(signer);
+                            const plain = decryptData(rawCipher, key);
+                            display.innerText = "🔓 Decrypted: " + plain;
+                        };
+                    }, 500);
+                }
+            } else {
+                // Legacy (Plain text)
+                display.innerText = "📝 Note: " + note.replace("text:", "");
+            }
+        }
+    } catch (err) {
+        console.log("Error fetching note:", err);
+    }
 }
 
 // --- Helper: Get Contract ---
@@ -92,78 +219,6 @@ async function getContract() {
 
     const signer = await provider.getSigner();
     return new ethers.Contract(CONTRACT_ADDRESS, window.MT_NOTE_ABI, signer);
-}
-
-// --- Action: Save Note ---
-async function saveNote(txHash) {
-    const input = document.getElementById('mt-input');
-    const status = document.getElementById('mt-status');
-    const noteText = input.value;
-
-    if (!noteText) return alert("Write something first!");
-
-    try {
-        status.innerText = "Waiting for approval...";
-        status.style.color = "#fbbf24"; // Yellow
-
-        const contract = await getContract();
-
-        // 1. Prepare Data
-        // TODO: In the next step, we will encrypt this!
-        // For now: Text -> Fake CID to prove connection
-        const fakeCid = "text:" + noteText; 
-
-        // 2. Send Transaction
-        status.innerText = "Check your wallet...";
-        const tx = await contract.addNote(txHash, fakeCid);
-        
-        console.log("Tx Sent:", tx.hash);
-        status.innerText = "Mining...";
-        
-        // 3. Wait for Receipt
-        await tx.wait();
-        
-        status.innerText = "Saved to Blockchain! 🚀";
-        status.style.color = "#65b3ad"; // Mantle Green
-        
-        // Update UI
-        input.value = "";
-        await checkExistingNote(txHash);
-
-    } catch (err) {
-        console.error(err);
-        status.innerText = "Error: " + (err.shortMessage || err.message);
-        status.style.color = "#ef4444"; // Red
-    }
-}
-
-// --- Action: Read Note ---
-async function checkExistingNote(txHash) {
-    if (!window.ethereum) return;
-
-    try {
-        // Read-only provider (no popup needed usually, but simplest to reuse)
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, window.MT_NOTE_ABI, provider);
-        
-        // We need an address to query 'userNotes[address][txHash]'
-        // Since the mapping is private/nested, we used 'getNote(user, txHash)'
-        // But we need the CURRENT user's address. 
-        const accounts = await provider.listAccounts();
-        if (accounts.length === 0) return; // Not connected yet
-        
-        const userAddress = accounts[0].address;
-        const note = await contract.getNote(userAddress, txHash);
-
-        if (note && note.length > 0) {
-            const display = document.getElementById('mt-display');
-            display.style.display = "block";
-            // Remove the 'text:' prefix we added
-            display.innerText = "📝 Found Note: " + note.replace("text:", "");
-        }
-    } catch (err) {
-        console.log("Could not fetch notes (probably not connected yet).");
-    }
 }
 
 // Wait for ethers.js to load, then start

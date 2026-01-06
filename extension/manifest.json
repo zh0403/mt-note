@@ -14,7 +14,7 @@
     ],
     "web_accessible_resources": [
       {
-        "resources": ["ethers.js", "abi.js", "inpage.js"],
+        "resources": ["ethers.js", "crypto-js.js", "abi.js", "inpage.js"],
         "matches": ["<all_urls>"]
       }
     ]

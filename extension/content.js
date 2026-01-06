@@ -1,7 +1,7 @@
 // content.js
 
 // 1. Define the order of scripts
-const scripts = ['ethers.js', 'abi.js', 'inpage.js'];
+const scripts = ['ethers.js', 'crypto-js.js', 'abi.js', 'inpage.js'];
 
 // 2. Recursive function to load them one by one
 function loadScript(index) {
