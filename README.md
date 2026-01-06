@@ -1,4 +1,4 @@
-# 😈 MT Note (Mantle Transaction Note)
+# 📕 MT Note (Mantle Transaction Note)
 
 > "Don't let your history be MT."
 
