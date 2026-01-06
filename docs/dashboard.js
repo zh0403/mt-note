@@ -20,23 +20,13 @@ async function waitForEthereum() {
 }
 
 async function initDashboard() {
-    // 1. Wait for MetaMask to load
+    // 1. Wait for MetaMask
     const eth = await waitForEthereum();
-    
-    if (!eth) {
-        // If still nothing after 3 seconds, show error
-        document.getElementById('status-bar').style.display = 'block';
-        document.getElementById('status-bar').innerHTML = `
-            <b>MetaMask not detected.</b><br>
-            If you have it installed, try refreshing this page.
-        `;
-        return;
-    }
-    
+    if (!eth) return showMetaMaskError();
+
     // 2. Setup Provider
     provider = new ethers.BrowserProvider(window.ethereum);
     
-    // Request access (this triggers the MetaMask popup)
     try {
         await provider.send("eth_requestAccounts", []);
         signer = await provider.getSigner();
@@ -47,28 +37,37 @@ async function initDashboard() {
         // Update UI
         document.getElementById('connect-btn').innerText = "Connected: " + address.slice(0,6) + "...";
         document.getElementById('connect-btn').classList.add('btn-outline');
-        updateStatus("Scanning blockchain for your notes... (This might take a moment)");
+        updateStatus("Scanning recent blocks for your notes...");
 
-        // 3. Query Events
+        // --- THE FIX IS HERE ---
+        // Get the current block number first
+        const currentBlock = await provider.getBlockNumber();
+        
+        // We only scan the last 5,000 blocks to stay under the 10k limit
+        // (This covers about ~2 hours of history, perfect for a demo)
+        const startBlock = currentBlock - 5000; 
+
+        console.log(`Scanning from block ${startBlock} to ${currentBlock}`);
+
         const filter = contract.filters.NoteLog(address);
         
-        // Fetch logs
-        const events = await contract.queryFilter(filter, 0, "latest");
+        // Pass 'startBlock' instead of 0
+        const events = await contract.queryFilter(filter, startBlock, "latest");
         allEvents = events.reverse(); 
         
         renderTable(allEvents, null); // Render LOCKED initially
         
         // Change button to "Unlock"
         const btn = document.getElementById('connect-btn');
-        btn.innerText = "🔓 Unlock My Notes";
+        btn.innerText = "Unlock My Notes";
         btn.className = "btn"; 
         btn.onclick = unlockNotes;
         
-        updateStatus(`✅ Found ${events.length} notes. Click 'Unlock' to decrypt them.`);
+        updateStatus(`Found ${events.length} notes in the last 5,000 blocks.`);
 
     } catch (err) {
         console.error(err);
-        updateStatus("❌ Connection Error: " + err.message);
+        updateStatus("Connection Error: " + (err.reason || err.message));
     }
 }
 
