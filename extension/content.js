@@ -1,21 +1,30 @@
 // content.js
-// Inject scripts in order: abi.js -> ethers.js -> inpage.js
-function injectScript(src, callback) {
+
+// 1. Define the order of scripts
+const scripts = ['ethers.js', 'abi.js', 'inpage.js'];
+
+// 2. Recursive function to load them one by one
+function loadScript(index) {
+    if (index >= scripts.length) return; // Done
+
+    const file = scripts[index];
     const script = document.createElement('script');
-    script.src = chrome.runtime.getURL(src);
+    script.src = chrome.runtime.getURL(file);
+    script.async = false; // Important
+
+    // WAIT for this script to finish loading before starting the next one
     script.onload = function() {
-        if (callback) callback();
-        this.remove(); // Clean up tag after injection
+        console.log(`[mt_note] Loaded: ${file}`);
+        loadScript(index + 1); // Load next
+        this.remove(); // Clean up the tag (optional)
     };
+    
     script.onerror = function() {
-        console.error(`Failed to load script: ${src}`);
+        console.error(`[mt_note] Failed to load: ${file}`);
     };
+
     (document.head || document.documentElement).appendChild(script);
 }
 
-// Inject scripts in sequence
-injectScript('abi.js', () => {
-    injectScript('ethers.js', () => {
-        injectScript('inpage.js');
-    });
-});
+// Start the chain
+loadScript(0);
