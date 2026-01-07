@@ -35,11 +35,16 @@ async function initDashboard() {
         const address = await signer.getAddress();
         
         // Update UI
-        document.getElementById('connect-btn').innerText = "Connected: " + address.slice(0,6) + "...";
-        document.getElementById('connect-btn').classList.add('btn-outline');
-        updateStatus("Scanning recent blocks for your notes...");
+        document.getElementById('stat-count').innerText = events.length;
+        
+        if (events.length > 0) {
+            // Get the block number of the most recent event (first in array since we reversed it)
+            const lastBlock = events[0].blockNumber;
+            document.getElementById('stat-last').innerText = "Block " + lastBlock;
+        } else {
+            document.getElementById('stat-last').innerText = "None";
+        }
 
-        // --- THE FIX IS HERE ---
         // Get the current block number first
         const currentBlock = await provider.getBlockNumber();
         
