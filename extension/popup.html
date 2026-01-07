@@ -2,26 +2,104 @@
 <html>
 <head>
     <style>
-        body { width: 200px; background: #0f1214; color: white; padding: 15px; font-family: sans-serif; }
-        h3 { margin-top:0; display: flex; align-items: center; gap: 5px; }
-        p { font-size:12px; color:#888; margin-bottom: 15px; }
-        button {
-            width:100%; 
-            background: #65b3ad; 
-            border:none; 
-            padding: 10px; 
-            cursor: pointer; 
-            font-weight:bold; 
-            border-radius: 6px;
-            color: #000;
+        body {
+            width: 300px; /* Standard extension width */
+            background-color: #0f1214;
+            color: #ffffff;
+            font-family: 'Inter', -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
         }
-        button:hover { background: #569e99; }
+        
+        /* Header */
+        .header {
+            background: #1a1d1f;
+            padding: 15px 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .brand {
+            font-weight: 800;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-dot {
+            height: 8px;
+            width: 8px;
+            background-color: #65b3ad; /* Green */
+            border-radius: 50%;
+            box-shadow: 0 0 5px #65b3ad;
+        }
+
+        /* Content */
+        .content {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        h2 { margin: 0 0 5px 0; font-size: 18px; }
+        p { color: #94a3b8; font-size: 13px; margin: 0 0 20px 0; }
+
+        /* Main Button */
+        .btn-main {
+            display: block;
+            width: 100%;
+            background: linear-gradient(135deg, #65b3ad 0%, #38b2ac 100%);
+            color: #000;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+        .btn-main:hover { opacity: 0.9; }
+
+        /* Footer Links */
+        .footer {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        .link {
+            color: #65b3ad;
+            font-size: 12px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .link:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
-    <h3>MT Note</h3>
-    <p>Secure notes for Mantle.</p>
-    <button id="open-dash">Open Ledger</button>
+
+    <div class="header">
+        <div class="brand">
+            <span>📕</span> MT Note
+        </div>
+        <div class="status-dot" title="Active"></div>
+    </div>
+
+    <div class="content">
+        <h2>Your Ledger</h2>
+        <p>Secure, decentralized notes on Mantle.</p>
+
+        <button id="open-dash" class="btn-main">
+            Open Dashboard
+        </button>
+
+        <div class="footer">
+            <span class="link" id="go-mantle">Go to MantleScan</span>
+            <span style="color:#333">|</span>
+            <span class="link" id="go-github">GitHub</span>
+        </div>
+    </div>
 
     <script src="popup.js"></script>
 </body>

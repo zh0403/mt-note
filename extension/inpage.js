@@ -37,6 +37,20 @@ function decryptData(ciphertext, key) {
 async function init() {
     console.log("📕 MT Note: Initializing...");
 
+    // --- NEW: Add Global Styles for Animations ---
+    const styleTag = document.createElement('style');
+    styleTag.innerHTML = `
+        @keyframes mt-pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .mt-loading {
+            animation: mt-pulse 1.5s infinite;
+        }
+    `;
+    document.head.appendChild(styleTag);
+
     const path = window.location.pathname.split('/');
     const txHash = path[path.length - 1];
     if (!txHash.startsWith("0x")) return;
@@ -180,11 +194,13 @@ async function saveNote(txHash) {
         console.log("Tx Sent:", tx.hash);
         
         status.innerText = "Mining... (Please wait)";
+        status.classList.add('mt-loading');
         
         // --- Safe Wait ---
         try {
             await tx.wait(); // This might crash if RPC is busy
             status.innerText = "Saved to Blockchain! 🚀";
+            status.classList.remove('mt-loading');
         } catch (waitError) {
             console.warn("Rate limit hit during wait, but Tx likely sent:", waitError);
             // If we have a hash, it's usually fine!
@@ -194,7 +210,8 @@ async function saveNote(txHash) {
                 throw waitError; // Real error
             }
         }
-        
+        status.classList.remove('mt-loading');
+
         status.style.color = "#65b3ad"; // Mantle Green
         input.value = "";
         
