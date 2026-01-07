@@ -1,50 +1,48 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-/**
- * @title mt_note (Mantle Transaction Note)
- * @notice A decentralized registry linking Transaction Hashes to IPFS CIDs.
- * @dev Optimized for the Mantle Network.
- */
-contract mt_note {
-    
-    // --- Events ---
-    // We emit an event so your Chrome Extension can easily find all notes
-    // created by a specific user without needing to loop through arrays.
-    event NoteLog(
-        address indexed user, 
-        bytes32 indexed txHash, 
-        string ipfsCid, 
-        uint256 timestamp
-    );
+import "@openzeppelin/contracts/access/Ownable.sol"; // Use OpenZeppelin for security
 
-    // --- State Variables ---
-    // Mapping: User Address -> Transaction Hash -> IPFS CID
+contract mt_note is Ownable {
+    
+    // --- Revenue Model ---
+    uint256 public noteFee = 0; // Initially 0 for Hackathon judges!
+    
+    event NoteLog(address indexed user, bytes32 indexed txHash, string ipfsCid, uint256 timestamp);
+    event FeeUpdated(uint256 newFee);
+
+    // Pass msg.sender to Ownable to set you as the owner
+    constructor() Ownable(msg.sender) {}
+
     mapping(address => mapping(bytes32 => string)) private userNotes;
 
-    // --- Functions ---
-
     /**
-     * @notice Save a note link to the blockchain.
-     * @param _txHash The hash of the transaction you are annotating.
-     * @param _ipfsCid The IPFS ID where the encrypted text is stored.
+     * @notice Save a note. Requires payment if noteFee > 0.
      */
-    function addNote(bytes32 _txHash, string calldata _ipfsCid) external {
-        // Validation: Don't allow empty CIDs (save gas if mistake)
+    function addNote(bytes32 _txHash, string calldata _ipfsCid) external payable {
         require(bytes(_ipfsCid).length > 0, "CID cannot be empty");
+        
+        // 💰 The Money Maker: Check if user sent enough MNT
+        require(msg.value >= noteFee, "Insufficient fee sent");
 
-        // Update state
         userNotes[msg.sender][_txHash] = _ipfsCid;
 
-        // Emit event for the frontend/indexer
         emit NoteLog(msg.sender, _txHash, _ipfsCid, block.timestamp);
     }
 
-    /**
-     * @notice Retrieve a note for a specific transaction.
-     * @param _user The address of the note creator.
-     * @param _txHash The transaction hash to look up.
-     */
+    // --- Admin Functions (For You) ---
+    
+    // 1. Change the price later (e.g., set to 0.1 MNT after hackathon)
+    function setFee(uint256 _newFee) external onlyOwner {
+        noteFee = _newFee;
+        emit FeeUpdated(_newFee);
+    }
+
+    // 2. Withdraw your earnings
+    function withdraw() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
+    }
+
     function getNote(address _user, bytes32 _txHash) external view returns (string memory) {
         return userNotes[_user][_txHash];
     }

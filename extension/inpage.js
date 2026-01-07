@@ -2,7 +2,7 @@
 
 // Ensure the address is set (Safety check)
 // Replace with your ACTUAL contract address if different
-const CONTRACT_ADDRESS = window.MT_NOTE_ADDRESS || "0x4e752A4d38B33354a334bf95248D1498bef89319";
+const CONTRACT_ADDRESS = window.MT_NOTE_ADDRESS || "0xb04D5E5234D5556b5B46600414763ff3829199fd";
 let GLOBAL_KEY = null; // We store the key here after they sign once
 
 // --- HELPER: Derive Key from Signature ---
@@ -161,21 +161,28 @@ async function saveNote(txHash) {
     if (!noteText) return alert("Write something first!");
 
     try {
-        status.innerText = "Please sign to encrypt...";
+        status.innerText = "Checking fees...";
         const contract = await getContract();
         
-        // 1. Get the Key (MetaMask Popup #1)
+        // 1. Check how much the fee is (Read from Blockchain)
+        const fee = await contract.noteFee();
+        console.log("Current Fee:", fee.toString());
+        
+        // 2. Get the Key (MetaMask Popup #1)
         // We need the signer from the contract object
+
         const key = await getEncryptionKey(contract.runner);
 
-        // 2. Encrypt
+        // 3. Encrypt
         status.innerText = "Encrypting...";
         const encryptedCid = "enc:" + encryptData(noteText, key);
         console.log("Encrypted Data:", encryptedCid);
 
-        // 3. Save to Blockchain (MetaMask Popup #2 - Gas Fee)
+        // 4. Save to Blockchain (MetaMask Popup #2 - Gas Fee)
         status.innerText = "Check your wallet...";
-        const tx = await contract.addNote(txHash, encryptedCid);
+        
+        // We send the 'fee' along with the transaction
+        const tx = await contract.addNote(txHash, encryptedCid, { value: fee });
         
         status.innerText = "Saving...";
         await tx.wait();

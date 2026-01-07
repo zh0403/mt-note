@@ -1,6 +1,6 @@
 // dashboard.js
 
-const CONTRACT_ADDRESS = window.MT_NOTE_ADDRESS || "0x4e752A4d38B33354a334bf95248D1498bef89319"; 
+const CONTRACT_ADDRESS = window.MT_NOTE_ADDRESS || "0xb04D5E5234D5556b5B46600414763ff3829199fd"; 
 let provider, signer, contract;
 let allEvents = []; // Store raw events here
 
