@@ -11,7 +11,7 @@ async function getEncryptionKey(signer) {
 
     // 1. Ask user to sign a static message
     // This signature acts as their "password" but they don't have to remember it!
-    const msg = "Sign this message to log into MT Note.\n\n(This does not cost gas)";
+    const msg = "UNLOCK_MT_NOTE"; // Keep it simple!
     const signature = await signer.signMessage(msg);
 
     // 2. Turn that signature into a usable AES key

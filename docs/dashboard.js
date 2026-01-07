@@ -76,8 +76,11 @@ async function unlockNotes() {
         updateStatus("✍️ Please sign the message to generate your decryption key...");
         
         // 1. Get Key
-        const msg = "Sign this message to unlock your MT Notes.\n\n(This does not cost gas)";
+        const msg = "UNLOCK_MT_NOTE";
         const signature = await signer.signMessage(msg);
+
+        // Debugging: Print the key to console to verify
+        console.log("Generated Key:", signature);
         
         // 2. Re-render Table with Key
         updateStatus("🔓 Decrypting...");
