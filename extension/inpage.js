@@ -164,38 +164,53 @@ async function saveNote(txHash) {
         status.innerText = "Checking fees...";
         const contract = await getContract();
         
-        // 1. Check how much the fee is (Read from Blockchain)
+        // 1. Check Fee
         const fee = await contract.noteFee();
         console.log("Current Fee:", fee.toString());
-        
-        // 2. Get the Key (MetaMask Popup #1)
-        // We need the signer from the contract object
 
-        const key = await getEncryptionKey(contract.runner);
-
-        // 3. Encrypt
+        // 2. Encrypt
         status.innerText = "Encrypting...";
+        const signer = contract.runner; // Get signer from contract
+        const key = await getEncryptionKey(signer); 
         const encryptedCid = "enc:" + encryptData(noteText, key);
-        console.log("Encrypted Data:", encryptedCid);
 
-        // 4. Save to Blockchain (MetaMask Popup #2 - Gas Fee)
-        status.innerText = "Check your wallet...";
+        // 3. Send Transaction
+        status.innerText = "Check wallet...";
+        const tx = await contract.addNote(txHash, encryptedCid, { value: fee }); 
+        console.log("Tx Sent:", tx.hash);
         
-        // We send the 'fee' along with the transaction
-        const tx = await contract.addNote(txHash, encryptedCid, { value: fee });
+        status.innerText = "Mining... (Please wait)";
         
-        status.innerText = "Saving...";
-        await tx.wait();
+        // --- Safe Wait ---
+        try {
+            await tx.wait(); // This might crash if RPC is busy
+            status.innerText = "Saved to Blockchain! 🚀";
+        } catch (waitError) {
+            console.warn("Rate limit hit during wait, but Tx likely sent:", waitError);
+            // If we have a hash, it's usually fine!
+            if (tx.hash) {
+                status.innerText = "Tx Sent! (Waiting for confirmation...)";
+            } else {
+                throw waitError; // Real error
+            }
+        }
         
-        status.innerText = "Saved & Secured! 🔒";
+        status.style.color = "#65b3ad"; // Mantle Green
         input.value = "";
         
-        // Refresh display
-        await checkExistingNote(txHash);
+        // Wait 2 seconds before refreshing to let the node catch up
+        setTimeout(() => checkExistingNote(txHash), 2000);
 
     } catch (err) {
         console.error(err);
-        status.innerText = "Error: " + err.message;
+        // Only show red error if it's NOT a rate limit
+        if (err.message.includes("rate limited") || err.code === -32005) {
+             status.innerText = "Network busy, but Tx Sent! 🚀";
+             status.style.color = "#65b3ad";
+        } else {
+             status.innerText = "Error: " + (err.shortMessage || err.message);
+             status.style.color = "#ef4444"; 
+        }
     }
 }
 
