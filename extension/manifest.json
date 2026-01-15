@@ -27,7 +27,7 @@
     "host_permissions": ["https://sepolia.mantlescan.xyz/*", "https://mantlescan.xyz/*"],
     "web_accessible_resources": [
       {
-        "resources": ["ethers.js", "crypto-js.js", "abi.js", "inpage.js"],
+        "resources": ["ethers.js", "crypto-js.js", "abi.js", "inpage.js", "icon.png"],
         "matches": ["<all_urls>"]
       }
     ]

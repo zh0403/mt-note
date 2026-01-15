@@ -1,7 +1,11 @@
 // inpage.js
-const myself = document.currentScript.src; 
-const EXTENSION_BASE = myself.substring(0, myself.lastIndexOf('/'));
-const ICON_URL = EXTENSION_BASE + "/icon.png";
+// This script runs in the page context and cannot access `chrome.runtime`.
+// The content script passes the resolved icon URL via a data-attribute on
+// the injected <script> tag (see `content.js`).
+const currentScript = document.currentScript;
+const ICON_URL = currentScript && currentScript.dataset
+    ? currentScript.dataset.iconUrl || ''
+    : '';
 
 // Ensure the address is set (Safety check)
 // Replace with your ACTUAL contract address if different
@@ -105,9 +109,8 @@ async function init() {
 
     const tagsHtml = quickTags.map(tag => 
         `<button class="mt-tag" data-val="${tag.val}" style="
-            background: ${theme.tagBg}; color: ${theme.tagText}; border: 1px solid ${theme.border}; 
-            padding: 4px 10px; border-radius: 20px; font-size: 12px; cursor: pointer; margin-right: 6px; font-weight: 500;
-        ">${tag.label}</button>`
+        background: ${theme.tagBg}; color: ${theme.tagText}; border: 1px solid ${theme.border}; 
+        padding: 4px 10px; border-radius: 20px; font-size: 12px; cursor: pointer; margin-right: 6px; font-weight: 500;">${tag.label}</button>`
     ).join('');
 
     container.innerHTML = `
