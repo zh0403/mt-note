@@ -33,17 +33,6 @@ async function initDashboard() {
         contract = new ethers.Contract(CONTRACT_ADDRESS, window.MT_NOTE_ABI, signer);
         
         const address = await signer.getAddress();
-        
-        // Update UI
-        document.getElementById('stat-count').innerText = events.length;
-        
-        if (events.length > 0) {
-            // Get the block number of the most recent event (first in array since we reversed it)
-            const lastBlock = events[0].blockNumber;
-            document.getElementById('stat-last').innerText = "Block " + lastBlock;
-        } else {
-            document.getElementById('stat-last').innerText = "None";
-        }
 
         // Get the current block number first
         const currentBlock = await provider.getBlockNumber();
@@ -60,7 +49,20 @@ async function initDashboard() {
         const events = await contract.queryFilter(filter, startBlock, "latest");
         allEvents = events.reverse(); 
         
+        // 3. Render table and update stats based on fetched events
         renderTable(allEvents, null); // Render LOCKED initially
+
+        // 4. Update UI statistics
+        const totalNotes = allEvents.length;
+        document.getElementById('stat-count').innerText = totalNotes;
+        
+        if (totalNotes > 0) {
+            // Get the block number of the most recent event (first in array since we reversed it)
+            const lastBlock = allEvents[0].blockNumber;
+            document.getElementById('stat-last').innerText = "Block " + lastBlock;
+        } else {
+            document.getElementById('stat-last').innerText = "None";
+        }
         
         // Change button to "Unlock"
         const btn = document.getElementById('connect-btn');
