@@ -5,15 +5,30 @@ let provider, signer, contract;
 let allEvents = []; // Store raw events here
 let isConnected = false;
 let isUnlocked = false;
+let currentDecryptKey = null;
 
 // Wire up buttons
 const connectButton = document.getElementById('connect-btn');
 const unlockButton = document.getElementById('unlock-btn');
+const navDashboard = document.getElementById('nav-dashboard');
+const navSettings = document.getElementById('nav-settings');
+const tabDashboard = document.getElementById('tab-dashboard');
+const tabSettings = document.getElementById('tab-settings');
+const downloadCsvButton = document.getElementById('download-csv-btn');
 
 connectButton.onclick = initDashboard;
 if (unlockButton) {
     unlockButton.style.display = 'none';
     unlockButton.onclick = unlockNotes;
+}
+
+if (navDashboard && navSettings && tabDashboard && tabSettings) {
+    navDashboard.onclick = () => switchTab('dashboard');
+    navSettings.onclick = () => switchTab('settings');
+}
+
+if (downloadCsvButton) {
+    downloadCsvButton.onclick = downloadLedgerAsCsv;
 }
 
 // --- Polling Helper to wait for MetaMask ---
@@ -44,6 +59,15 @@ async function initDashboard() {
         
         const address = await signer.getAddress();
         console.log("Querying Contract:", CONTRACT_ADDRESS, "For User:", address);
+
+        // Owner check for Admin Zone
+        let isOwner = false;
+        try {
+            const owner = await contract.owner();
+            isOwner = owner && owner.toLowerCase() === address.toLowerCase();
+        } catch (e) {
+            console.warn("Failed to fetch owner()", e);
+        }
 
         // Get the current block number first
         const currentBlock = await provider.getBlockNumber();
@@ -87,6 +111,11 @@ async function initDashboard() {
             unlockButton.onclick = unlockNotes;
         }
 
+        // If owner, show and populate Admin Zone in Settings
+        if (isOwner) {
+            setupAdminZone();
+        }
+
         isConnected = true;
         isUnlocked = false;
         
@@ -109,6 +138,8 @@ async function unlockNotes() {
         // Debugging: Print the key to console to verify
         console.log("Generated Key:", signature);
         
+        currentDecryptKey = signature;
+
         // 2. Re-render Table with Key
         updateStatus("🔓 Decrypting...");
         renderTable(allEvents, signature); // Pass the key this time
@@ -192,6 +223,171 @@ function updateStatus(msg) {
     const el = document.getElementById('status-bar');
     el.style.display = 'block';
     el.innerText = msg;
+}
+
+function switchTab(tab) {
+    if (!navDashboard || !navSettings || !tabDashboard || !tabSettings) return;
+
+    if (tab === 'dashboard') {
+        navDashboard.classList.add('active');
+        navSettings.classList.remove('active');
+        tabDashboard.style.display = '';
+        tabSettings.style.display = 'none';
+    } else {
+        navDashboard.classList.remove('active');
+        navSettings.classList.add('active');
+        tabDashboard.style.display = 'none';
+        tabSettings.style.display = '';
+    }
+}
+
+function downloadLedgerAsCsv() {
+    if (!allEvents || allEvents.length === 0) {
+        alert("No ledger data loaded yet. Connect your wallet first.");
+        return;
+    }
+
+    const rows = [["Date", "TxHash", "Note"]];
+
+    allEvents.forEach(ev => {
+        const txHash = ev.args.txHash;
+        const rawNote = ev.args.ipfsCid;
+        const ts = ev.args.timestamp;
+
+        let dateStr = "";
+        if (ts) {
+            // timestamp is uint256 seconds
+            const d = new Date(Number(ts) * 1000);
+            dateStr = d.toISOString();
+        } else {
+            dateStr = "Block " + ev.blockNumber;
+        }
+
+        let noteText = "";
+        if (rawNote && rawNote.startsWith("enc:")) {
+            if (currentDecryptKey) {
+                const plain = decrypt(rawNote.replace("enc:", ""), currentDecryptKey);
+                noteText = plain || "DECRYPT_FAILED";
+            } else {
+                noteText = "Encrypted (locked)";
+            }
+        } else if (rawNote) {
+            noteText = rawNote.replace("text:", "");
+        }
+
+        const shortHash = txHash;
+
+        rows.push([dateStr, shortHash, noteText]);
+    });
+
+    const csvContent = rows
+        .map(cols =>
+            cols
+                .map(v => {
+                    const s = String(v ?? "");
+                    const escaped = s.replace(/"/g, '""');
+                    return `"${escaped}"`;
+                })
+                .join(",")
+        )
+        .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "my_mantle_ledger.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function setupAdminZone() {
+    const adminZone = document.getElementById('admin-zone');
+    if (!adminZone) return;
+
+    adminZone.style.display = 'block';
+    adminZone.innerHTML = `
+        <h4>Admin Zone</h4>
+        <p style="color:#facc15; font-size:13px; margin-top:4px;">
+            Super user controls &amp; contract revenue.
+        </p>
+        <div style="margin-top:10px; display:flex; flex-direction:column; gap:12px;">
+            <div>
+                <div style="font-size:12px; color:var(--text-muted);">Contract Balance (MNT)</div>
+                <div id="admin-balance" style="font-size:18px; margin-top:4px;">Loading...</div>
+            </div>
+            <div>
+                <label for="admin-fee-input" style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">
+                    Update Fee (MNT)
+                </label>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input id="admin-fee-input" type="number" min="0" step="0.0001"
+                        style="flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:#111827; color:#e5e7eb;"/>
+                    <button id="admin-fee-btn" class="btn">Update Fee</button>
+                </div>
+            </div>
+            <div>
+                <button id="admin-withdraw-btn" class="btn btn-outline" style="width:100%;">Withdraw Revenue</button>
+            </div>
+        </div>
+    `;
+
+    // Fetch and display balance
+    if (provider) {
+        provider.getBalance(CONTRACT_ADDRESS).then(bn => {
+            const mnt = Number(ethers.formatEther(bn));
+            const el = document.getElementById('admin-balance');
+            if (el) el.innerText = mnt.toFixed(4) + " MNT";
+        }).catch(err => console.warn("Failed to load balance", err));
+    }
+
+    const feeInput = document.getElementById('admin-fee-input');
+    const feeBtn = document.getElementById('admin-fee-btn');
+    const withdrawBtn = document.getElementById('admin-withdraw-btn');
+
+    if (feeBtn && feeInput) {
+        feeBtn.onclick = async () => {
+            if (!contract || !signer) {
+                alert("Wallet not connected.");
+                return;
+            }
+            const val = feeInput.value;
+            if (!val) {
+                alert("Enter a fee amount in MNT.");
+                return;
+            }
+            try {
+                const wei = ethers.parseEther(val.toString());
+                const tx = await contract.setFee(wei);
+                updateStatus("Updating fee... " + tx.hash);
+                await tx.wait();
+                updateStatus("Fee updated successfully.");
+            } catch (e) {
+                console.error(e);
+                alert("Failed to update fee: " + (e.reason || e.message));
+            }
+        };
+    }
+
+    if (withdrawBtn) {
+        withdrawBtn.onclick = async () => {
+            if (!contract || !signer) {
+                alert("Wallet not connected.");
+                return;
+            }
+            try {
+                const tx = await contract.withdraw();
+                updateStatus("Withdrawing revenue... " + tx.hash);
+                await tx.wait();
+                updateStatus("Withdrawal complete.");
+            } catch (e) {
+                console.error(e);
+                alert("Failed to withdraw: " + (e.reason || e.message));
+            }
+        };
+    }
 }
 
 function disconnectWallet() {

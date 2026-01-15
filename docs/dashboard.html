@@ -129,7 +129,19 @@
         a:hover { text-decoration: underline; }
         
         /* Utility */
-        .tag-pill { background: #2d3748; padding: 2px 8px; border-radius: 12px; font-size: 11px; color: #cbd5e1; }
+                .tag-pill { background: #2d3748; padding: 2px 8px; border-radius: 12px; font-size: 11px; color: #cbd5e1; }
+
+        /* Settings / Admin */
+        .settings-section {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .admin-zone {
+            border: 1px solid #facc15;
+            box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -139,8 +151,8 @@
             <img src="icon.png" style="width: 28px; height: 28px;">
             MT Note
         </div>
-        <a class="nav-item active">📊 Dashboard</a>
-        <a class="nav-item">⚙️ Settings</a>
+        <a id="nav-dashboard" class="nav-item active">📊 Dashboard</a>
+        <a id="nav-settings" class="nav-item">⚙️ Settings</a>
         <a class="nav-item" href="https://mantle.xyz" target="_blank">🌐 Mantle Eco</a>
         <div style="flex-grow:1"></div>
         <div style="font-size:11px; color:#555;">v1.0.0 (Hackathon Build)</div>
@@ -158,41 +170,62 @@
             </div>
         </div>
 
-        <div class="stats-grid">
-            <div class="card">
-                <h4>Total Notes</h4>
-                <div class="value" id="stat-count">-</div>
+        <!-- Dashboard Tab -->
+        <div id="tab-dashboard">
+            <div class="stats-grid">
+                <div class="card">
+                    <h4>Total Notes</h4>
+                    <div class="value" id="stat-count">-</div>
+                </div>
+                <div class="card">
+                    <h4>Last Activity</h4>
+                    <div class="value" id="stat-last" style="font-size:18px; margin-top:8px;">-</div>
+                </div>
+                <div class="card">
+                    <h4>Est. Gas Saved</h4>
+                    <div class="value" style="color: #65b3ad;">∞</div>
+                </div>
             </div>
-            <div class="card">
-                <h4>Last Activity</h4>
-                <div class="value" id="stat-last" style="font-size:18px; margin-top:8px;">-</div>
-            </div>
-            <div class="card">
-                <h4>Est. Gas Saved</h4>
-                <div class="value" style="color: #65b3ad;">∞</div>
+
+            <div id="status-bar" style="margin-bottom: 20px; padding: 15px; background: #1e2327; border-radius: 8px; border: 1px solid #333; display: none; color: #fbbf24;"></div>
+
+            <div class="ledger-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="20%">Date (Block)</th>
+                            <th width="20%">Transaction</th>
+                            <th width="50%">Secure Note</th>
+                            <th width="10%"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledger-body">
+                        <tr>
+                            <td colspan="4" style="text-align:center; padding: 40px; color: #555;">
+                                Please connect your wallet to view history.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <div id="status-bar" style="margin-bottom: 20px; padding: 15px; background: #1e2327; border-radius: 8px; border: 1px solid #333; display: none; color: #fbbf24;"></div>
+        <!-- Settings Tab -->
+        <div id="tab-settings" style="display:none;">
+            <h3 style="margin-top:0; margin-bottom:16px;">Settings</h3>
+            <div class="settings-section">
+                <div class="card">
+                    <h4>Export</h4>
+                    <p style="color: var(--text-muted); font-size: 13px; margin-top:4px;">
+                        Download your currently loaded ledger as a CSV file.
+                    </p>
+                    <button id="download-csv-btn" class="btn" style="margin-top:10px;">Download Ledger as CSV</button>
+                </div>
 
-        <div class="ledger-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th width="20%">Date (Block)</th>
-                        <th width="20%">Transaction</th>
-                        <th width="50%">Secure Note</th>
-                        <th width="10%"></th>
-                    </tr>
-                </thead>
-                <tbody id="ledger-body">
-                    <tr>
-                        <td colspan="4" style="text-align:center; padding: 40px; color: #555;">
-                            Please connect your wallet to view history.
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                <div id="admin-zone" class="card admin-zone" style="display:none;">
+                    <!-- Filled dynamically for contract owner -->
+                </div>
+            </div>
         </div>
     </div>
 
