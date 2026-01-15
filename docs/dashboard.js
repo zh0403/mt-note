@@ -48,21 +48,20 @@ async function initDashboard() {
         // Pass 'startBlock' instead of 0
         const events = await contract.queryFilter(filter, startBlock, "latest");
         allEvents = events.reverse(); 
-        
-        // 3. Render table and update stats based on fetched events
-        renderTable(allEvents, null); // Render LOCKED initially
 
-        // 4. Update UI statistics
-        const totalNotes = allEvents.length;
-        document.getElementById('stat-count').innerText = totalNotes;
+        // 3. Update UI statistics based on fetched events
+        document.getElementById('stat-count').innerText = events.length;
         
-        if (totalNotes > 0) {
+        if (events.length > 0) {
             // Get the block number of the most recent event (first in array since we reversed it)
             const lastBlock = allEvents[0].blockNumber;
             document.getElementById('stat-last').innerText = "Block " + lastBlock;
         } else {
             document.getElementById('stat-last').innerText = "None";
         }
+
+        // 4. Finally, render the table
+        renderTable(allEvents, null); // Render LOCKED initially
         
         // Change button to "Unlock"
         const btn = document.getElementById('connect-btn');
