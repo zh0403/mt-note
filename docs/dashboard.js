@@ -3,8 +3,18 @@
 const CONTRACT_ADDRESS = window.MT_NOTE_ADDRESS || "0xb04D5E5234D5556b5B46600414763ff3829199fd"; 
 let provider, signer, contract;
 let allEvents = []; // Store raw events here
+let isConnected = false;
+let isUnlocked = false;
 
-document.getElementById('connect-btn').onclick = initDashboard;
+// Wire up buttons
+const connectButton = document.getElementById('connect-btn');
+const unlockButton = document.getElementById('unlock-btn');
+
+connectButton.onclick = initDashboard;
+if (unlockButton) {
+    unlockButton.style.display = 'none';
+    unlockButton.onclick = unlockNotes;
+}
 
 // --- Polling Helper to wait for MetaMask ---
 async function waitForEthereum() {
@@ -33,6 +43,7 @@ async function initDashboard() {
         contract = new ethers.Contract(CONTRACT_ADDRESS, window.MT_NOTE_ABI, signer);
         
         const address = await signer.getAddress();
+        console.log("Querying Contract:", CONTRACT_ADDRESS, "For User:", address);
 
         // Get the current block number first
         const currentBlock = await provider.getBlockNumber();
@@ -62,12 +73,22 @@ async function initDashboard() {
 
         // 4. Finally, render the table
         renderTable(allEvents, null); // Render LOCKED initially
-        
-        // Change button to "Unlock"
-        const btn = document.getElementById('connect-btn');
-        btn.innerText = "Unlock My Notes";
-        btn.className = "btn"; 
-        btn.onclick = unlockNotes;
+
+        // 5. Update buttons and status
+        const shortAddr = address.slice(0, 6) + "..." + address.slice(-4);
+        connectButton.innerText = `${shortAddr} [Disconnect]`;
+        connectButton.disabled = false;
+        connectButton.onclick = disconnectWallet;
+
+        if (unlockButton) {
+            unlockButton.style.display = 'inline-flex';
+            unlockButton.disabled = false;
+            unlockButton.innerText = "Unlock Notes";
+            unlockButton.onclick = unlockNotes;
+        }
+
+        isConnected = true;
+        isUnlocked = false;
         
         updateStatus(`Found ${events.length} notes in the last 5,000 blocks.`);
 
@@ -92,8 +113,13 @@ async function unlockNotes() {
         updateStatus("🔓 Decrypting...");
         renderTable(allEvents, signature); // Pass the key this time
         
-        // 3. Update UI
-        document.getElementById('connect-btn').style.display = 'none';
+        // 3. Update UI - keep the button visible but mark as unlocked
+        if (unlockButton) {
+            unlockButton.innerText = "✨ Ledger Unlocked";
+            unlockButton.disabled = true;
+            unlockButton.onclick = null;
+        }
+        isUnlocked = true;
         updateStatus("✨ Ledger Unlocked. All data visible.");
         
     } catch (err) {
@@ -166,4 +192,45 @@ function updateStatus(msg) {
     const el = document.getElementById('status-bar');
     el.style.display = 'block';
     el.innerText = msg;
+}
+
+function disconnectWallet() {
+    // Reset connection state
+    provider = undefined;
+    signer = undefined;
+    contract = undefined;
+    allEvents = [];
+    isConnected = false;
+    isUnlocked = false;
+
+    // Reset stats
+    document.getElementById('stat-count').innerText = "-";
+    document.getElementById('stat-last').innerText = "-";
+
+    // Reset table body to initial message
+    const tbody = document.getElementById('ledger-body');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="4" style="text-align:center; padding: 40px; color: #555;">
+                Please connect your wallet to view history.
+            </td>
+        </tr>
+    `;
+
+    // Hide status bar
+    const statusBar = document.getElementById('status-bar');
+    statusBar.style.display = 'none';
+    statusBar.innerText = "";
+
+    // Reset buttons
+    connectButton.innerText = "Connect Wallet";
+    connectButton.disabled = false;
+    connectButton.onclick = initDashboard;
+
+    if (unlockButton) {
+        unlockButton.style.display = 'none';
+        unlockButton.disabled = false;
+        unlockButton.innerText = "Unlock Notes";
+        unlockButton.onclick = unlockNotes;
+    }
 }
