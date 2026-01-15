@@ -1,4 +1,7 @@
 // inpage.js
+const myself = document.currentScript.src; 
+const EXTENSION_BASE = myself.substring(0, myself.lastIndexOf('/'));
+const ICON_URL = EXTENSION_BASE + "/icon.png";
 
 // Ensure the address is set (Safety check)
 // Replace with your ACTUAL contract address if different
@@ -109,8 +112,10 @@ async function init() {
 
     container.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid ${theme.border}; padding-bottom: 10px;">
-            <h3 style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 16px;">
-                📕 <span style="background: linear-gradient(90deg, #65b3ad, #38b2ac); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">MT Note</span>
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 16px;">
+                <img src="${ICON_URL}" style="width: 24px; height: 24px;">
+                
+                <span style="background: linear-gradient(90deg, #65b3ad, #38b2ac); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">MT Note</span>
             </h3>
             <span id="mt-status" style="font-size: 11px; color: #94a3b8; font-family: monospace;">● System Ready</span>
         </div>
@@ -137,10 +142,6 @@ async function init() {
     if (anchor) {
         anchor.parentNode.insertBefore(container, anchor);
     }
-
-    // [Keep the rest of your event listeners exactly the same]
-    // ...
-    // ...
     
     // Add Hover Logic for Tags (Dynamic)
     setTimeout(() => {
@@ -222,7 +223,7 @@ async function saveNote(txHash) {
         console.error(err);
         // Only show red error if it's NOT a rate limit
         if (err.message.includes("rate limited") || err.code === -32005) {
-             status.innerText = "Network busy, but Tx Sent! 🚀";
+             status.innerText = "Network busy, but Tx Sent!";
              status.style.color = "#65b3ad";
         } else {
              status.innerText = "Error: " + (err.shortMessage || err.message);
@@ -255,11 +256,11 @@ async function checkExistingNote(txHash) {
                 // If we already have the key (from saving), decrypt immediately
                 if (GLOBAL_KEY) {
                     const plain = decryptData(rawCipher, GLOBAL_KEY);
-                    display.innerText = "🔓 Decrypted: " + plain;
+                    display.innerText = "Decrypted: " + plain;
                 } else {
                     // If no key yet, show a button to Unlock
                     display.innerHTML = `
-                        🔒 <b>Encrypted Note Found</b><br>
+                        <b>Encrypted Note Found</b><br>
                         <button id="mt-unlock-btn" style="margin-top:5px; cursor:pointer; background:#333; color:white; border:none; padding:5px 10px; border-radius:4px;">
                             Unlock to Read
                         </button>
@@ -272,13 +273,13 @@ async function checkExistingNote(txHash) {
                             const signer = await provider.getSigner();
                             const key = await getEncryptionKey(signer);
                             const plain = decryptData(rawCipher, key);
-                            display.innerText = "🔓 Decrypted: " + plain;
+                            display.innerText = "Decrypted: " + plain;
                         };
                     }, 500);
                 }
             } else {
                 // Legacy (Plain text)
-                display.innerText = "📝 Note: " + note.replace("text:", "");
+                display.innerText = "Note: " + note.replace("text:", "");
             }
         }
     } catch (err) {

@@ -3,8 +3,18 @@
     "name": "mt_note",
     "version": "1.0",
     "description": "Decentralized notes for Mantle transactions.",
-    "permissions": ["storage"],
-    "host_permissions": ["https://sepolia.mantlescan.xyz/*", "https://mantlescan.xyz/*"],
+
+    "icons": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    },
+
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": "icon.png"
+    },
+
     "content_scripts": [
       {
         "matches": ["https://sepolia.mantlescan.xyz/tx/*", "https://mantlescan.xyz/tx/*"],
@@ -12,13 +22,13 @@
         "run_at": "document_end"
       }
     ],
+    
+    "permissions": ["storage"],
+    "host_permissions": ["https://sepolia.mantlescan.xyz/*", "https://mantlescan.xyz/*"],
     "web_accessible_resources": [
       {
         "resources": ["ethers.js", "crypto-js.js", "abi.js", "inpage.js"],
         "matches": ["<all_urls>"]
       }
-    ],
-    "action": {
-        "default_popup": "popup.html"
-    }
+    ]
   }

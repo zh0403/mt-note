@@ -4,8 +4,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const btn = document.getElementById('open-dash');
     if (btn) {
         btn.addEventListener('click', () => {
+            // REPLACE THIS with your actual GitHub Pages URL when you have it!
             // For now, it points to localhost or the one you set up.
-            chrome.tabs.create({ url: 'https://zonghao04.github.io/mt-note/dashboard.html' });
+            chrome.tabs.create({ url: 'https://zh0403.github.io/mt-note/dashboard.html' });
         });
     }
 
@@ -22,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (btnGit) {
         btnGit.addEventListener('click', () => {
             // Replace with your Repo URL
-            chrome.tabs.create({ url: 'https://github.com/zonghao04/mt-note' });
+            chrome.tabs.create({ url: 'https://github.com/zh0403/mt-note' });
         });
     }
 });
