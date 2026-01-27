@@ -48,6 +48,6 @@ Open `docs/dashboard.html` in your browser (via Live Server) or visit the live l
 🔗 Links
 Live Demo: https://zh0403.github.io/mt-note/dashboard.html
 
-Demo Video: [Insert YouTube/Loom Link Here]
+Demo Video: 
 
 Contract: 0xb04D5E5234D5556b5B46600414763ff3829199fd
